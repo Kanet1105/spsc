@@ -7,7 +7,9 @@ fn main() {
 
 #[allow(unused)]
 fn test_ring_buffer_1(v1: usize, v2: usize) {
-    let (writer, reader) = spsc::ring_buffer::RingBuffer::<u64>::new(BUFFER_SIZE).unwrap();
+    use spsc::ring_buffer::{BufferReader, BufferWriter};
+
+    let (mut writer, mut reader) = spsc::ring_buffer::RingBuffer::<u64>::new(BUFFER_SIZE).unwrap();
 
     std::thread::spawn(move || {
         let mut read_buffer: Vec<u64> = (0..v1 as u64).map(|_| 0).collect();
@@ -20,7 +22,7 @@ fn test_ring_buffer_1(v1: usize, v2: usize) {
                 println!("{:?}", &read_buffer[index..index + v2]);
             }
 
-            index += n;
+            index += n as usize;
         }
 
         read_buffer
@@ -33,8 +35,7 @@ fn test_ring_buffer_1(v1: usize, v2: usize) {
         std::io::stdin().read_line(&mut input).unwrap();
 
         let n = writer.write(&write_buffer[write_index..write_index + v2]);
-        write_index += n;
-        println!("{}: {:?}, {:?}\n", n, writer.info(), writer.ring_buffer());
+        write_index += n as usize;
     }
 }
 
