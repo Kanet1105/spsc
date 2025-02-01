@@ -1,8 +1,8 @@
 const BUFFER_SIZE: usize = 4096;
 
 fn main() {
-    // test_ring_buffer_1(100_000, 100);
-    test_ring_buffer_2(100_000, 100);
+    test_ring_buffer_1(100_000, 100);
+    // test_ring_buffer_2(100_000, 100);
 }
 
 #[allow(unused)]

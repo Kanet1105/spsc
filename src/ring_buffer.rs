@@ -8,7 +8,7 @@ use std::{
 };
 
 pub trait BufferWriter<T: Clone + Copy> {
-    fn available(&self) -> u32;
+    fn available(&self, size: u32) -> (u32, u32);
 
     fn get_mut(&mut self, index: u32) -> &mut T;
 
@@ -18,7 +18,7 @@ pub trait BufferWriter<T: Clone + Copy> {
 }
 
 pub trait BufferReader<T: Clone + Copy> {
-    fn available(&self) -> u32;
+    fn filled(&self, size: u32) -> (u32, u32);
 
     fn get(&self, index: u32) -> &T;
 
@@ -118,46 +118,47 @@ impl<T: Clone + Copy> RingBuffer<T> {
 
 pub struct Writer<T: Clone + Copy> {
     ring_buffer: RingBuffer<T>,
-    current_index: u32,
 }
 
 impl<T: Clone + Copy> BufferWriter<T> for Writer<T> {
     #[inline(always)]
-    fn available(&self) -> u32 {
+    fn available(&self, size: u32) -> (u32, u32) {
         let head_index = self.ring_buffer.head_index();
         let tail_index = self.ring_buffer.tail_index();
         let capacity = self.ring_buffer.capacity();
 
-        capacity - tail_index.wrapping_sub(head_index)
+        let available = capacity - tail_index.wrapping_sub(head_index);
+        if available >= size {
+            (size, tail_index)
+        } else {
+            (0, tail_index)
+        }
     }
 
     #[inline(always)]
     fn get_mut(&mut self, index: u32) -> &mut T {
-        let index = self.current_index.wrapping_add(index) % self.ring_buffer.capacity();
-        let ring_buffer = self.ring_buffer.as_mut();
+        let index = index % self.ring_buffer.capacity();
 
-        ring_buffer.get_mut(index as usize).unwrap()
+        self.ring_buffer.as_mut().get_mut(index as usize).unwrap()
     }
 
     #[inline(always)]
     fn advance_index(&mut self, offset: u32) {
-        let previous_index = self.ring_buffer.advance_tail_index(offset);
-        self.current_index = previous_index.wrapping_add(offset);
+        self.ring_buffer.advance_tail_index(offset);
     }
 
     #[inline(always)]
     fn write(&mut self, buffer: &[T]) -> u32 {
-        let available = self.available();
+        let (available, index) = self.available(buffer.len() as u32);
 
         if available > 0 {
-            let burst_size = std::cmp::min(available, buffer.len() as u32);
-            for index in 0..burst_size {
-                let data = self.get_mut(index);
-                *data = buffer[index as usize];
+            for offset in 0..available {
+                let data = self.get_mut(index + offset);
+                *data = buffer[offset as usize];
             }
-            self.advance_index(burst_size);
+            self.advance_index(available);
 
-            burst_size
+            available
         } else {
             0
         }
@@ -166,55 +167,51 @@ impl<T: Clone + Copy> BufferWriter<T> for Writer<T> {
 
 impl<T: Clone + Copy> Writer<T> {
     fn new(ring_buffer: RingBuffer<T>) -> Self {
-        let current_index = ring_buffer.tail_index();
-
-        Self {
-            ring_buffer,
-            current_index,
-        }
+        Self { ring_buffer }
     }
 }
 
 pub struct Reader<T: Clone + Copy> {
     ring_buffer: RingBuffer<T>,
-    current_index: u32,
 }
 
 impl<T: Clone + Copy> BufferReader<T> for Reader<T> {
     #[inline(always)]
-    fn available(&self) -> u32 {
+    fn filled(&self, size: u32) -> (u32, u32) {
         let head_index = self.ring_buffer.head_index();
         let tail_index = self.ring_buffer.tail_index();
 
-        tail_index.wrapping_sub(head_index)
+        let filled = tail_index.wrapping_sub(head_index);
+        if filled >= size {
+            (size, head_index)
+        } else {
+            (0, head_index)
+        }
     }
 
     #[inline(always)]
     fn get(&self, index: u32) -> &T {
-        let index = self.current_index.wrapping_add(index) % self.ring_buffer.capacity();
-        let ring_buffer = self.ring_buffer.as_ref();
+        let index = index % self.ring_buffer.capacity();
 
-        ring_buffer.get(index as usize).unwrap()
+        self.ring_buffer.as_ref().get(index as usize).unwrap()
     }
 
     #[inline(always)]
     fn advance_index(&mut self, offset: u32) {
-        let previous_index = self.ring_buffer.advance_head_index(offset);
-        self.current_index = previous_index.wrapping_add(offset);
+        self.ring_buffer.advance_head_index(offset);
     }
 
     #[inline(always)]
     fn read(&mut self, buffer: &mut [T]) -> u32 {
-        let available = self.available();
+        let (filled, index) = self.filled(buffer.len() as u32);
 
-        if available > 0 {
-            let burst_size = std::cmp::min(available, buffer.len() as u32);
-            for index in 0..burst_size {
-                buffer[index as usize] = *self.get(index);
+        if filled > 0 {
+            for offset in 0..filled {
+                buffer[offset as usize] = *self.get(index + offset);
             }
-            self.advance_index(burst_size);
+            self.advance_index(filled);
 
-            burst_size
+            filled
         } else {
             0
         }
@@ -223,12 +220,7 @@ impl<T: Clone + Copy> BufferReader<T> for Reader<T> {
 
 impl<T: Clone + Copy> Reader<T> {
     fn new(ring_buffer: RingBuffer<T>) -> Self {
-        let current_index = ring_buffer.head_index();
-
-        Self {
-            ring_buffer,
-            current_index,
-        }
+        Self { ring_buffer }
     }
 }
 
