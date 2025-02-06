@@ -79,14 +79,10 @@ fn benchmark_ring_buffer_1(c: &mut Criterion) {
     let (writer, reader) = spsc::ring_buffer::ring_buffer::<u64>(BUFFER_SIZE).unwrap();
 
     c.bench_function("Ring Buffer 1", |b| {
-        b.iter(|| {
-            ring_buffer_1(
-                black_box(100_000),
-                black_box(1),
-                writer.clone(),
-                reader.clone(),
-            )
-        })
+        b.iter_with_setup(
+            || (writer.clone(), reader.clone()),
+            |(writer, reader)| ring_buffer_1(black_box(100_000), black_box(1), writer, reader),
+        )
     });
 }
 
@@ -94,14 +90,10 @@ fn benchmark_ring_buffer_2(c: &mut Criterion) {
     let ring_buffer = spsc::vecdeque::RingBuffer::<u64>::new(BUFFER_SIZE as usize);
 
     c.bench_function("Ring Buffer 2", |b| {
-        b.iter(|| {
-            ring_buffer_2(
-                black_box(100_000),
-                black_box(1),
-                ring_buffer.clone(),
-                ring_buffer.clone(),
-            )
-        })
+        b.iter_with_setup(
+            || (ring_buffer.clone(), ring_buffer.clone()),
+            |(writer, reader)| ring_buffer_2(black_box(100_000), black_box(1), writer, reader),
+        )
     });
 }
 
