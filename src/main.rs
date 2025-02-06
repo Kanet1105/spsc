@@ -1,4 +1,4 @@
-const BUFFER_SIZE: usize = 4096;
+const BUFFER_SIZE: u32 = 4096;
 
 fn main() {
     test_ring_buffer_1(100_000, 100);
@@ -9,7 +9,7 @@ fn main() {
 fn test_ring_buffer_1(v1: usize, v2: usize) {
     use spsc::ring_buffer::{BufferReader, BufferWriter};
 
-    let (mut writer, mut reader) = spsc::ring_buffer::RingBuffer::<u64>::new(BUFFER_SIZE).unwrap();
+    let (mut writer, mut reader) = spsc::ring_buffer::ring_buffer::<u64>(BUFFER_SIZE).unwrap();
 
     std::thread::spawn(move || {
         let mut read_buffer: Vec<u64> = (0..v1 as u64).map(|_| 0).collect();
@@ -40,7 +40,7 @@ fn test_ring_buffer_1(v1: usize, v2: usize) {
 }
 
 fn test_ring_buffer_2(v1: usize, v2: usize) {
-    let writer = spsc::vecdeque::RingBuffer::<u64>::new(BUFFER_SIZE);
+    let writer = spsc::vecdeque::RingBuffer::<u64>::new(BUFFER_SIZE as usize);
     let reader = writer.clone();
 
     std::thread::spawn(move || {
