@@ -52,6 +52,17 @@ pub struct Writer<T: Copy> {
 
 unsafe impl<T: Copy> Send for Writer<T> {}
 
+impl<T: Copy> Clone for Writer<T> {
+    fn clone(&self) -> Self {
+        Self {
+            buffer: self.buffer.clone(),
+            capacity: self.capacity,
+            head: self.head.clone(),
+            tail: self.tail.clone(),
+        }
+    }
+}
+
 impl<T: Copy> BufferWriter<T> for Writer<T> {
     #[inline(always)]
     fn available(&self, size: u32) -> (u32, u32) {
@@ -121,6 +132,17 @@ pub struct Reader<T: Copy> {
 }
 
 unsafe impl<T: Copy> Send for Reader<T> {}
+
+impl<T: Copy> Clone for Reader<T> {
+    fn clone(&self) -> Self {
+        Self {
+            buffer: self.buffer.clone(),
+            capacity: self.capacity,
+            head: self.head.clone(),
+            tail: self.tail.clone(),
+        }
+    }
+}
 
 impl<T: Copy> BufferReader<T> for Reader<T> {
     #[inline(always)]

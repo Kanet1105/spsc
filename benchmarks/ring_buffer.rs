@@ -11,7 +11,7 @@ fn ring_buffer_1(
     mut writer: spsc::ring_buffer::Writer<u64>,
     mut reader: spsc::ring_buffer::Reader<u64>,
 ) {
-    let reader = std::thread::spawn(move || {
+    let reader_thread = std::thread::spawn(move || {
         let mut read_buffer: Vec<u64> = (0..v1 as u64).map(|_| 0).collect();
         let mut index = 0;
 
@@ -23,7 +23,7 @@ fn ring_buffer_1(
         read_buffer
     });
 
-    let writer = std::thread::spawn(move || {
+    let writer_thread = std::thread::spawn(move || {
         let write_buffer: Vec<u64> = (0..v1 as u64).map(|value| value).collect();
         let mut index = 0;
 
@@ -35,16 +35,18 @@ fn ring_buffer_1(
         write_buffer
     });
 
-    let write_buffer = writer.join().unwrap();
-    let read_buffer = reader.join().unwrap();
+    let write_buffer = writer_thread.join().unwrap();
+    let read_buffer = reader_thread.join().unwrap();
     assert!(write_buffer == read_buffer);
 }
 
-fn ring_buffer_2(v1: usize, v2: usize) {
-    let writer = spsc::vecdeque::RingBuffer::<u64>::new(BUFFER_SIZE as usize);
-    let reader = writer.clone();
-
-    let reader = std::thread::spawn(move || {
+fn ring_buffer_2(
+    v1: usize,
+    v2: usize,
+    reader: spsc::vecdeque::RingBuffer<u64>,
+    writer: spsc::vecdeque::RingBuffer<u64>,
+) {
+    let reader_thread = std::thread::spawn(move || {
         let mut read_buffer: Vec<u64> = (0..v1 as u64).map(|_| 0).collect();
         let mut index = 0;
 
@@ -56,7 +58,7 @@ fn ring_buffer_2(v1: usize, v2: usize) {
         read_buffer
     });
 
-    let writer = std::thread::spawn(move || {
+    let writer_thread = std::thread::spawn(move || {
         let write_buffer: Vec<u64> = (0..v1 as u64).map(|value| value).collect();
         let mut index = 0;
 
@@ -68,22 +70,38 @@ fn ring_buffer_2(v1: usize, v2: usize) {
         write_buffer
     });
 
-    let write_buffer = writer.join().unwrap();
-    let read_buffer = reader.join().unwrap();
+    let write_buffer = writer_thread.join().unwrap();
+    let read_buffer = reader_thread.join().unwrap();
     assert!(write_buffer == read_buffer);
 }
 
 fn benchmark_ring_buffer_1(c: &mut Criterion) {
-    let (mut writer, mut reader) = spsc::ring_buffer::ring_buffer::<u64>(BUFFER_SIZE).unwrap();
+    let (writer, reader) = spsc::ring_buffer::ring_buffer::<u64>(BUFFER_SIZE).unwrap();
 
     c.bench_function("Ring Buffer 1", |b| {
-        b.iter(|| ring_buffer_1(black_box(100_000), black_box(1), writer, reader))
+        b.iter(|| {
+            ring_buffer_1(
+                black_box(100_000),
+                black_box(1),
+                writer.clone(),
+                reader.clone(),
+            )
+        })
     });
 }
 
 fn benchmark_ring_buffer_2(c: &mut Criterion) {
+    let ring_buffer = spsc::vecdeque::RingBuffer::<u64>::new(BUFFER_SIZE as usize);
+
     c.bench_function("Ring Buffer 2", |b| {
-        b.iter(|| ring_buffer_2(black_box(100_000), black_box(1)))
+        b.iter(|| {
+            ring_buffer_2(
+                black_box(100_000),
+                black_box(1),
+                ring_buffer.clone(),
+                ring_buffer.clone(),
+            )
+        })
     });
 }
 
