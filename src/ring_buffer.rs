@@ -7,7 +7,7 @@ use std::{
     },
 };
 
-pub trait BufferWriter<T: Clone + Copy> {
+pub trait BufferWriter<T: Copy> {
     fn available(&self, size: u32) -> (u32, u32);
 
     fn get_mut(&mut self, index: u32) -> &mut T;
@@ -17,7 +17,7 @@ pub trait BufferWriter<T: Clone + Copy> {
     fn write(&mut self, buffer: &[T]) -> u32;
 }
 
-pub trait BufferReader<T: Clone + Copy> {
+pub trait BufferReader<T: Copy> {
     fn filled(&self, size: u32) -> (u32, u32);
 
     fn get(&self, index: u32) -> &T;
@@ -27,20 +27,20 @@ pub trait BufferReader<T: Clone + Copy> {
     fn read(&mut self, buffer: &mut [T]) -> u32;
 }
 
-pub struct RingBuffer<T: Clone + Copy> {
+pub struct RingBuffer<T: Copy> {
     inner: Arc<RingBufferInner<T>>,
 }
 
-struct RingBufferInner<T: Clone + Copy> {
+struct RingBufferInner<T: Copy> {
     buffer: NonNull<Vec<T>>,
     capacity: u32,
     head: AtomicU32,
     tail: AtomicU32,
 }
 
-unsafe impl<T: Clone + Copy> Send for RingBuffer<T> {}
+unsafe impl<T: Copy> Send for RingBuffer<T> {}
 
-impl<T: Clone + Copy> std::fmt::Debug for RingBuffer<T> {
+impl<T: Copy> std::fmt::Debug for RingBuffer<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -50,7 +50,7 @@ impl<T: Clone + Copy> std::fmt::Debug for RingBuffer<T> {
     }
 }
 
-impl<T: Clone + Copy> Clone for RingBuffer<T> {
+impl<T: Copy> Clone for RingBuffer<T> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -58,7 +58,7 @@ impl<T: Clone + Copy> Clone for RingBuffer<T> {
     }
 }
 
-impl<T: Clone + Copy> RingBuffer<T> {
+impl<T: Copy> RingBuffer<T> {
     pub fn new(capacity: usize) -> Result<(Writer<T>, Reader<T>), RingBufferError> {
         let mut buffer = Vec::<T>::with_capacity(capacity);
         let t = unsafe { MaybeUninit::<T>::zeroed().assume_init() };
@@ -116,11 +116,19 @@ impl<T: Clone + Copy> RingBuffer<T> {
     }
 }
 
-pub struct Writer<T: Clone + Copy> {
+pub struct Writer<T: Copy> {
     ring_buffer: RingBuffer<T>,
 }
 
-impl<T: Clone + Copy> BufferWriter<T> for Writer<T> {
+impl<T: Copy> Clone for Writer<T> {
+    fn clone(&self) -> Self {
+        Self {
+            ring_buffer: self.ring_buffer.clone(),
+        }
+    }
+}
+
+impl<T: Copy> BufferWriter<T> for Writer<T> {
     #[inline(always)]
     fn available(&self, size: u32) -> (u32, u32) {
         let head_index = self.ring_buffer.head_index();
@@ -165,17 +173,25 @@ impl<T: Clone + Copy> BufferWriter<T> for Writer<T> {
     }
 }
 
-impl<T: Clone + Copy> Writer<T> {
+impl<T: Copy> Writer<T> {
     fn new(ring_buffer: RingBuffer<T>) -> Self {
         Self { ring_buffer }
     }
 }
 
-pub struct Reader<T: Clone + Copy> {
+pub struct Reader<T: Copy> {
     ring_buffer: RingBuffer<T>,
 }
 
-impl<T: Clone + Copy> BufferReader<T> for Reader<T> {
+impl<T: Copy> Clone for Reader<T> {
+    fn clone(&self) -> Self {
+        Self {
+            ring_buffer: self.ring_buffer.clone(),
+        }
+    }
+}
+
+impl<T: Copy> BufferReader<T> for Reader<T> {
     #[inline(always)]
     fn filled(&self, size: u32) -> (u32, u32) {
         let head_index = self.ring_buffer.head_index();
@@ -218,7 +234,7 @@ impl<T: Clone + Copy> BufferReader<T> for Reader<T> {
     }
 }
 
-impl<T: Clone + Copy> Reader<T> {
+impl<T: Copy> Reader<T> {
     fn new(ring_buffer: RingBuffer<T>) -> Self {
         Self { ring_buffer }
     }
