@@ -135,11 +135,11 @@ impl<T: Copy> BufferWriter<T> for Writer<T> {
         let tail_index = self.ring_buffer.tail_index();
         let capacity = self.ring_buffer.capacity();
 
-        let available = capacity - tail_index.wrapping_sub(head_index);
+        let available = capacity - head_index.wrapping_sub(tail_index);
         if available >= size {
-            (size, tail_index)
+            (size, head_index)
         } else {
-            (0, tail_index)
+            (0, head_index)
         }
     }
 
@@ -152,7 +152,7 @@ impl<T: Copy> BufferWriter<T> for Writer<T> {
 
     #[inline(always)]
     fn advance_index(&mut self, offset: u32) {
-        self.ring_buffer.advance_tail_index(offset);
+        self.ring_buffer.advance_head_index(offset);
     }
 
     #[inline(always)]
@@ -197,11 +197,11 @@ impl<T: Copy> BufferReader<T> for Reader<T> {
         let head_index = self.ring_buffer.head_index();
         let tail_index = self.ring_buffer.tail_index();
 
-        let filled = tail_index.wrapping_sub(head_index);
+        let filled = head_index.wrapping_sub(tail_index);
         if filled >= size {
-            (size, head_index)
+            (size, tail_index)
         } else {
-            (0, head_index)
+            (0, tail_index)
         }
     }
 
@@ -214,7 +214,7 @@ impl<T: Copy> BufferReader<T> for Reader<T> {
 
     #[inline(always)]
     fn advance_index(&mut self, offset: u32) {
-        self.ring_buffer.advance_head_index(offset);
+        self.ring_buffer.advance_tail_index(offset);
     }
 
     #[inline(always)]
